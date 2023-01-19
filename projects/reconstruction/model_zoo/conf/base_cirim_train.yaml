@@ -6,7 +6,7 @@ model:
   model_name: CIRIM
   recurrent_layer: IndRNN
   conv_filters:
-    - 64
+    - 16
     - 64
     - 2
   conv_kernels:
