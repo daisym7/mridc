@@ -7,7 +7,11 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 import numpy as np
 import torch
 
+import matplotlib.pyplot as plt
+from torch import Tensor
+
 import mridc.collections.common.parts.fft as fft
+
 import mridc.collections.common.parts.utils as utils
 import mridc.collections.reconstruction.data.subsample as subsample
 
@@ -440,6 +444,14 @@ class MRIDataTransforms:
                         half_scan_percentage=self.half_scan_percentage,
                         center_scale=self.mask_center_scale,
                     )
+                    ####### add code
+                    #
+                    # print("acc", _acc)
+                    # # plt.imshow(np.abs(_mask))
+                    # # plt.show()
+                    # plt.imshow(np.log(np.abs(torch.view_as_complex(_masked_kspace))[0]), cmap='gray')
+                    # plt.show()
+                    #################
                 elif self.dimensionality == 3:
                     _masked_kspace = []
                     _mask = None
@@ -470,6 +482,8 @@ class MRIDataTransforms:
             mask = masks
             acc = accs  # type: ignore
         else:
+            print("4th IF")
+
             masked_kspace, mask, acc = utils.apply_mask(
                 kspace,
                 self.mask_func[0],  # type: ignore
@@ -615,7 +629,40 @@ class MRIDataTransforms:
                     eta = eta / torch.max(torch.abs(eta))
 
                 target = target / torch.max(torch.abs(target))
+        ########################
+        # code toegevoegd
+        # masked_kspace_show = torch.view_as_complex(masked_kspace[0])
+        # # # # print("masked kspace shape", masked_kspace_show.shape)
+        # plt.imshow(np.log(np.abs(masked_kspace_show[0])), cmap='gray')
+        # plt.show()
+        # # # print(mask[0])
+        # # print(mask[0][0][0])
+        # samples = torch.count_nonzero(mask[0][0][0])
+        # # print(mask)
+        # acc = len(mask[0][0][0]) / samples
+        # print("ACC", acc)
 
+        # mask2 = np.ones(kspace.shape) * np.array(mask)
+        # print(mask2.shape)
+        # plt.imshow(mask2, cmap='gray')
+        # plt.show()
+        #
+        # # print(np.squeeze(mask[0]))
+        # # print("CHECK", np.count_nonzero(np.squeeze(mask[0])))
+        # print("CHECK", np.squeeze(mask[0])[147:173])
+        #
+
+        # check = np.zeros((320, 320))
+        # for m in range(320):
+        #     if mask[]
+        # kspace_row = torch.view_as_complex(masked_kspace[0])[0][0]
+        # print(kspace_row.shape)
+        # # print(kspace_row)
+        # print(np.real(kspace_row))
+        # samples = np.count_nonzero(np.real(kspace_row))
+        # acc = len(kspace_row) / samples
+        # print("ACC", acc)
+        ########################
         return kspace, masked_kspace, sensitivity_map, mask, eta, target, fname, slice_idx, acc
 
 

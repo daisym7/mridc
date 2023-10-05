@@ -140,6 +140,9 @@ class RandomMaskFunc(MaskFunc):
 
             # create the mask
             num_low_freqs = int(round(num_cols * center_fraction))
+            ##########################
+            # print("CHECK", center_fraction, num_low_freqs)
+            ###############################
             prob = (num_cols / acceleration - num_low_freqs) / (num_cols - num_low_freqs)
             mask = self.rng.uniform(size=num_cols) < prob  # type: ignore
             pad = torch.div((num_cols - num_low_freqs + 1), 2, rounding_mode="trunc").item()
@@ -149,6 +152,10 @@ class RandomMaskFunc(MaskFunc):
             mask_shape = [1 for _ in shape]
             mask_shape[-2] = num_cols
             mask = torch.from_numpy(mask.reshape(*mask_shape).astype(np.float32))
+
+            #############################
+            # print("CHECK MASK", mask.shape, mask[:,:,147:173,:])
+            #########################################
 
         return mask, acceleration
 

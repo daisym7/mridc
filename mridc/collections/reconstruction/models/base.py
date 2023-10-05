@@ -251,6 +251,7 @@ class BaseMRIReconstructionModel(modelPT.ModelPT, ABC):
             f"train_loss_{acc}x": train_loss.item(),  # type: ignore
             "lr": self._optimizer.param_groups[0]["lr"],  # type: ignore
         }
+        # self.log('train_loss', train_loss, on_step=False, on_epoch=True, logger=True)
         return {"loss": train_loss, "log": tensorboard_logs}
 
     def validation_step(self, batch: Dict[float, torch.Tensor], batch_idx: int) -> Dict:
@@ -341,7 +342,7 @@ class BaseMRIReconstructionModel(modelPT.ModelPT, ABC):
         self.psnr_vals[fname][slice_num] = torch.tensor(
             reconstruction_metrics.psnr(target, output, maxval=output.max() - output.min())
         ).view(1)
-
+        # self.log('val_loss', val_loss, on_step=False, on_epoch=True, logger=True)
         return {"val_loss": val_loss}
 
     def test_step(self, batch: Dict[float, torch.Tensor], batch_idx: int) -> Tuple[str, int, torch.Tensor]:

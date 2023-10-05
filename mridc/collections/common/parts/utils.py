@@ -2,6 +2,7 @@
 __author__ = "Dimitrios Karkalousos"
 
 # Parts of the code have been taken from https://github.com/facebookresearch/fastMRI
+import matplotlib.pyplot as plt
 
 from pathlib import Path
 from typing import Any, Dict, Optional, Sequence, Tuple, Union
@@ -335,8 +336,16 @@ def apply_mask(
         # padding value inclusive on right of zeros
         mask[:, :, padding[1] :] = 0
 
+    ###### ADD CODE
+    # plt.imshow(np.squeeze(mask)*np.ones((320, 320)), cmap='gray')
+    # plt.show()
+    ############################
     if shift:
         mask = torch.fft.fftshift(mask, dim=(1, 2))
+    ###### ADD CODE
+    # plt.imshow(np.squeeze(mask)*np.ones((320, 320)), cmap='gray')
+    # plt.show()
+    ############################
 
     masked_data = data * mask + 0.0  # the + 0.0 removes the sign of the zeros
 

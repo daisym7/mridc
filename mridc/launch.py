@@ -5,6 +5,9 @@ import pytorch_lightning as pl
 import torch
 from omegaconf import DictConfig, OmegaConf
 
+from pytorch_lightning.loggers import WandbLogger
+import wandb
+
 from mridc.collections.quantitative.models.qcirim import qCIRIM
 from mridc.collections.quantitative.models.qvn import qVarNet
 from mridc.collections.reconstruction.models.ccnn import CascadeNet
@@ -51,6 +54,7 @@ def main(cfg: DictConfig) -> None:
         DictConfig
     """
     logging.info(f"Config: {OmegaConf.to_yaml(cfg)}")
+    # wandb_logger = WandbLogger(project='Test_wandb_CIRIM', job_type="train")
 
     trainer = pl.Trainer(**cfg.trainer)
     exp_manager(trainer, cfg.get("exp_manager", None))
