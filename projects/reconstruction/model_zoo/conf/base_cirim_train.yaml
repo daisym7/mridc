@@ -63,7 +63,7 @@ model:
   log_images: true
 
   train_ds:
-    data_path: /scratch/dmvandenberg/Esaote Trainingset/Trainingset/Train/
+    data_path: /scratch/dmvandenberg/Esaote Trainingset/VolledigeDataset/Dataset/train/
     sense_path: None
     mask_path: None
     initial_predictions_path: None
@@ -82,59 +82,11 @@ model:
     coil_combination_method: SENSE
     dimensionality: 2
     mask_args:
-      type: random1d
+      type: gaussian1d
       accelerations:
-        - 1.4
+        - 3
       center_fractions:
-        - 0.08
-      scale: 0.02
-      shift_mask: false
-      use_seed: true
-    half_scan_percentage: 0.0
-    remask: false
-    crop_size: None
-    kspace_crop: false
-    crop_before_masking: true
-    kspace_zero_filling_size: None
-    normalize_inputs: true
-    max_norm: true
-    fft_centered: true
-    fft_normalization: ortho
-    spatial_dims:
-      - -2
-      - -1
-    coil_dim: 1
-    use_seed: false
-    shuffle: true
-    num_workers: 8
-    drop_last: false
-    pin_memory: false
-
-  validation_ds:
-    data_path: /scratch/dmvandenberg/Esaote Trainingset/Trainingset/Val/
-    sense_path: None
-    mask_path: None
-    initial_predictions_path: None
-    challenge: multicoil
-    batch_size: 1
-    sample_rate: 1
-    volume_sample_rate: None
-    use_dataset_cache: false
-    dataset_cache_file: None
-    num_cols: None
-    consecutive_slices: 1
-    data_saved_per_slice: false
-    complex_data: true
-    apply_prewhitening: false
-    apply_gcc: false
-    coil_combination_method: SENSE
-    dimensionality: 2
-    mask_args:
-      type: random1d
-      accelerations:
-        - 1.4
-      center_fractions:
-        - 0.08
+        - 0.7
       scale: 0.02
       shift_mask: false
       use_seed: false
@@ -152,9 +104,57 @@ model:
       - -2
       - -1
     coil_dim: 1
+    use_seed: false
+    shuffle: true
+    num_workers: 1
+    drop_last: false
+    pin_memory: false
+
+  validation_ds:
+    data_path: /scratch/dmvandenberg/Esaote Trainingset/VolledigeDataset/Dataset/Check/
+    sense_path: None
+    mask_path: None
+    initial_predictions_path: None
+    challenge: multicoil
+    batch_size: 1
+    sample_rate: 1
+    volume_sample_rate: None
+    use_dataset_cache: false
+    dataset_cache_file: None
+    num_cols: None
+    consecutive_slices: 1
+    data_saved_per_slice: false
+    complex_data: true
+    apply_prewhitening: false
+    apply_gcc: false
+    coil_combination_method: SENSE
+    dimensionality: 2
+    mask_args:
+      type: gaussian1d
+      accelerations:
+        - 4
+      center_fractions:
+        - 0.7
+      scale: 0.08
+      shift_mask: false
+      use_seed: true
+    half_scan_percentage: 0.0
+    remask: false
+    crop_size: None
+    kspace_crop: false
+    crop_before_masking: true
+    kspace_zero_filling_size: None
+    normalize_inputs: true
+    max_norm: true
+    fft_centered: true
+    fft_normalization: ortho
+    spatial_dims:
+      - -2
+      - -1
+    coil_dim: 1
     use_seed: true
     shuffle: false
-    num_workers: 8
+    num_workers: 1
     drop_last: false
     pin_memory: false
 
@@ -176,7 +176,7 @@ trainer:
   accelerator: gpu
   devices: 1
   num_nodes: 1
-  max_epochs: 100
+  max_epochs: 0
   precision: 16
   enable_checkpointing: false
   logger: false
@@ -185,9 +185,9 @@ trainer:
   max_steps: -1
 
 exp_manager:
-  exp_dir: /scratch/dmvandenberg/CIRIM_models_Esaote/0_slices_1.4x/
+  exp_dir: /scratch/dmvandenberg/CIRIM_models_Esaote/Eerste_experiment/
   create_tensorboard_logger: true
   create_wandb_logger: false
   wandb_logger_kwargs:
-    project: ???
+    project: AI4MRI
   files_to_copy: [ ]

@@ -9,6 +9,8 @@ import numba as nb
 import numpy as np
 import torch
 
+import matplotlib.pyplot as plt
+
 
 @contextlib.contextmanager
 def temp_seed(rng: np.random, seed: Optional[Union[int, Tuple[int, ...]]]):
@@ -142,6 +144,7 @@ class RandomMaskFunc(MaskFunc):
             num_low_freqs = int(round(num_cols * center_fraction))
             ##########################
             # print("CHECK", center_fraction, num_low_freqs)
+            # print("CHECK ACCELERATION", acceleration)
             ###############################
             prob = (num_cols / acceleration - num_low_freqs) / (num_cols - num_low_freqs)
             mask = self.rng.uniform(size=num_cols) < prob  # type: ignore
@@ -324,19 +327,20 @@ class Gaussian1DMaskFunc(MaskFunc):
         dims = [1 for _ in shape]
         self.shape = tuple(shape[-3:-1])
         dims[-2] = self.shape[-1]
-
         full_width_half_maximum, acceleration = self.choose_acceleration()
-        if not isinstance(full_width_half_maximum, list):
-            full_width_half_maximum = [full_width_half_maximum] * 2
+
+        # Why make it into a list?
+        # if not isinstance(full_width_half_maximum, list):
+        #     full_width_half_maximum = [full_width_half_maximum] * 2
+
         self.full_width_half_maximum = full_width_half_maximum
         self.acceleration = acceleration
-
         self.scale = scale
-
         mask = self.gaussian_kspace()
         mask[tuple(self.gaussian_coordinates())] = 1.0
 
-        mask = np.fft.ifftshift(np.fft.ifftshift(np.fft.ifftshift(mask, axes=0), axes=0), axes=(0, 1))
+        # why is this shift here?
+        # mask = np.fft.ifftshift(np.fft.ifftshift(np.fft.ifftshift(mask, axes=0), axes=0), axes=(0, 1))
 
         if half_scan_percentage != 0:
             mask[: int(np.round(mask.shape[0] * half_scan_percentage)), :] = 0.0
@@ -345,34 +349,154 @@ class Gaussian1DMaskFunc(MaskFunc):
 
     def gaussian_kspace(self):
         """Creates a Gaussian sampled k-space center."""
-        scaled = int(self.shape[0] * self.scale)
-        center = np.ones((scaled, self.shape[1]))
-        top_scaled = torch.div((self.shape[0] - scaled), 2, rounding_mode="trunc").item()
-        bottom_scaled = self.shape[0] - scaled - top_scaled
-        top = np.zeros((top_scaled, self.shape[1]))
-        btm = np.zeros((bottom_scaled, self.shape[1]))
-        return np.concatenate((top, center, btm))
+        print(self.shape[0])
+        scaled = int(self.shape[1] * self.scale)
+        center = np.ones((scaled, self.shape[0]))
+        top_scaled = torch.div((self.shape[1] - scaled), 2, rounding_mode="trunc").item()
+        bottom_scaled = self.shape[1] - scaled - top_scaled
+        top = np.zeros((top_scaled, self.shape[0]))
+        btm = np.zeros((bottom_scaled, self.shape[0]))
+        return np.concatenate((top, center, btm)).T
 
     def gaussian_coordinates(self):
         """Creates a Gaussian sampled k-space coordinates."""
-        n_sample = int(self.shape[0] / self.acceleration)
+        n_sample = int(self.shape[1] / self.acceleration)
         kernel = self.gaussian_kernel()
-        idxs = np.random.choice(range(self.shape[0]), size=n_sample, replace=False, p=kernel)
-        xsamples = np.concatenate([np.tile(i, self.shape[1]) for i in idxs])
-        ysamples = np.concatenate([range(self.shape[1]) for _ in idxs])
+        idxs = np.random.choice(range(self.shape[1]), size=n_sample, replace=False, p=kernel)
+        ysamples = np.concatenate([np.tile(i, self.shape[0]) for i in idxs])
+        xsamples = np.concatenate([range(self.shape[0]) for _ in idxs])
         return xsamples, ysamples
 
     def gaussian_kernel(self):
         """Creates a Gaussian sampled k-space kernel."""
-        kernel = 1
-        for fwhm, kern_len in zip(self.full_width_half_maximum, self.shape):
-            sigma = fwhm / np.sqrt(8 * np.log(2))
-            x = np.linspace(-1.0, 1.0, kern_len)
-            g = np.exp(-(x**2 / (2 * sigma**2)))
-            kernel = g
-            break
+        # removed the for loop with a break after one loop, why?
+        sigma = self.full_width_half_maximum / np.sqrt(8 * np.log(2))
+        x = np.linspace(-1.0, 1.0, self.shape[-1])
+        kernel = np.exp(-(x**2 / (2 * sigma**2)))
         kernel = kernel / kernel.sum()
         return kernel
+
+
+# class Gaussian1DMaskFunc(MaskFunc):
+#     """
+#     Creates a 1D sub-sampling mask of a given shape.
+#
+#     For autocalibration purposes, data points near the k-space center will be fully sampled within an ellipse of \
+#     which the half-axes will set to the set scale % of the fully sampled region. The remaining points will be sampled \
+#     according to a Gaussian distribution.
+#
+#     The center fractions here act as Full-Width at Half-Maximum (FWHM) values.
+#     """
+#
+#     def __call__(
+#         self,
+#         shape: Union[Sequence[int], np.ndarray],
+#         seed: Optional[Union[int, Tuple[int, ...]]] = None,
+#         half_scan_percentage: Optional[float] = 0.0,
+#         scale: Optional[float] = 0.02,
+#     ) -> Tuple[torch.Tensor, int]:
+#         """
+#         Parameters
+#         ----------
+#         shape: The shape of the mask to be created. The shape should have at least 3 dimensions. Samples are drawn \
+#         along the second last dimension.
+#         seed: Seed for the random number generator. Setting the seed ensures the same mask is generated each time \
+#         for the same shape. The random state is reset afterwards.
+#         half_scan_percentage: Optional; Defines a fraction of the k-space data that is not sampled.
+#         scale: For autocalibration purposes, data points near the k-space center will be fully sampled within an \
+#         ellipse of which the half-axes will set to the set scale % of the fully sampled region
+#
+#         Returns
+#         -------
+#         A tuple of the mask and the number of columns selected.
+#         """
+#         dims = [1 for _ in shape]
+#         self.shape = tuple(shape[-3:-1])
+#         # self.shape = tuple(shape[-1])
+#         dims[-2] = self.shape[-1]
+#         full_width_half_maximum, acceleration = self.choose_acceleration()
+#         if not isinstance(full_width_half_maximum, list):
+#             full_width_half_maximum = [full_width_half_maximum] * 2
+#         self.full_width_half_maximum = full_width_half_maximum
+#         self.acceleration = acceleration
+#
+#         self.scale = scale
+#
+#         mask = self.gaussian_kspace()
+#         ###########################
+#         plt.imshow(mask, cmap='gray')
+#         plt.show()
+#         # print(mask.shape)
+#         # print(len(self.gaussian_coordinates()[0]))
+#         # print(np.unique(self.gaussian_coordinates()[0]))
+#         # print(len(self.gaussian_coordinates()[1]))
+#         # print(np.unique(self.gaussian_coordinates()[1]))
+#         ############################
+#
+#         mask[tuple(self.gaussian_coordinates())] = 1.0
+#         ##############
+#         print("HIER 2")
+#
+#         plt.imshow(mask, cmap='gray')
+#         plt.show()
+#         ###################
+#         # mask = np.fft.ifftshift(np.fft.ifftshift(np.fft.ifftshift(mask, axes=0), axes=0), axes=(0, 1))
+#
+#         ################
+#         plt.imshow(mask, cmap='gray')
+#         plt.show()
+#         ################
+#
+#         if half_scan_percentage != 0:
+#             mask[: int(np.round(mask.shape[0] * half_scan_percentage)), :] = 0.0
+#
+#         ###############################
+#         # plt.imshow(mask, cmap='gray')
+#         # plt.show()
+#         # print("SHAPE", mask.shape)
+#         # print("CHECK", center_fraction, num_low_freqs)
+#         # print("CHECK ACCELERATION", acceleration)
+#         print(torch.from_numpy(mask[0].reshape(dims).astype(np.float32)))
+#         # mask2 = np.ones(kspace[0, :, :, 0].shape) * np.array(np.squeeze(mask[0]))
+#         # print("HIER")
+#         # mask = torch.from_numpy(mask[0].reshape(dims).astype(np.float32))
+#         # mask2 = np.ones(kspace[0, :, :, 0].shape) * np.array(np.squeeze(mask))
+#         # plt.imshow(mask, cmap='gray')
+#         # plt.show()
+#         #################################
+#         return torch.from_numpy(mask[0].reshape(dims).astype(np.float32)), acceleration
+#
+#     def gaussian_kspace(self):
+#         """Creates a Gaussian sampled k-space center."""
+#         scaled = int(self.shape[0] * self.scale)
+#         center = np.ones((scaled, self.shape[1]))
+#         top_scaled = torch.div((self.shape[0] - scaled), 2, rounding_mode="trunc").item()
+#         bottom_scaled = self.shape[0] - scaled - top_scaled
+#         top = np.zeros((top_scaled, self.shape[1]))
+#         btm = np.zeros((bottom_scaled, self.shape[1]))
+#         return np.concatenate((top, center, btm))
+#
+#     def gaussian_coordinates(self):
+#         """Creates a Gaussian sampled k-space coordinates."""
+#         n_sample = int(self.shape[0] / self.acceleration)
+#         kernel = self.gaussian_kernel()
+#         idxs = np.random.choice(range(self.shape[0]), size=n_sample, replace=False, p=kernel)
+#         xsamples = np.concatenate([np.tile(i, self.shape[1]) for i in idxs])
+#         ysamples = np.concatenate([range(self.shape[1]) for _ in idxs])
+#         return xsamples, ysamples
+#
+#     def gaussian_kernel(self):
+#         """Creates a Gaussian sampled k-space kernel."""
+#         kernel = 1
+#         for fwhm, kern_len in zip(self.full_width_half_maximum, self.shape):
+#             sigma = fwhm / np.sqrt(8 * np.log(2))
+#             x = np.linspace(-1.0, 1.0, kern_len)
+#             g = np.exp(-(x**2 / (2 * sigma**2)))
+#             kernel = g
+#             break
+#         kernel = kernel / kernel.sum()
+#         print("Kernel", kernel)
+#         return kernel
 
 
 class Gaussian2DMaskFunc(MaskFunc):

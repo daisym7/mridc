@@ -42,9 +42,6 @@ class CIRIM(base_models.BaseMRIReconstructionModel, ABC):
         # init superclass
         super().__init__(cfg=cfg, trainer=trainer)
 
-        # for wandb
-        # self.save_hyperparameters()
-
         # Cascades of RIM blocks
         cfg_dict = OmegaConf.to_container(cfg, resolve=True)
 
