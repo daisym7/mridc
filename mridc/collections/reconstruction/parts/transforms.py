@@ -9,6 +9,7 @@ import torch
 
 import matplotlib.pyplot as plt
 
+import mridc.collections.reconstruction.parts.augmentation as aug
 
 import mridc.collections.common.parts.fft as fft
 import mridc.collections.common.parts.utils as utils
@@ -256,6 +257,16 @@ class MRIDataTransforms:
 
         # Initial estimation
         eta = utils.to_tensor(eta) if eta is not None and eta.size != 0 else torch.tensor([])
+
+        ########################
+        # Add data augmentation
+        params = []
+        augm = aug.DataAugmentor(params, 10)
+        # print("CHECK 1", target.shape)
+        # print("check k", kspace.shape)
+        # print("check sens", sensitivity_map.shape)
+        kspace, _, sensitivity_map = augm(kspace, target, sensitivity_map, [])
+        ########################
 
         # If the target is not given, we need to compute it.
         if self.coil_combination_method.upper() == "RSS":
@@ -620,11 +631,29 @@ class MRIDataTransforms:
                 target = target / torch.max(torch.abs(target))
 
         ############################
+        # Acceleration based on the mask
+        # mask3 = np.squeeze(mask[0])
+        # a = len(mask3) / np.count_nonzero(mask3)
+        # print("acc", a)
         # Show Mask
         # print(mask)
         # mask2 = np.ones(kspace[0, :, :, 0].shape) * np.array(np.squeeze(mask[0]))
         # plt.imshow(mask2, cmap='gray')
         # plt.show()
+
+        # # Add data augmentation
+        # params = []
+        # augm = aug.DataAugmentor(params, 10)
+        # # print("CHECK 1", target.shape)
+        # # print("check k", kspace.shape)
+        # # print("check sens", sensitivity_map.shape)
+        # kspace, target, sensitivity_map = augm(kspace, target, sensitivity_map, [])
+        # print("CHECK 2", target.shape)
+        # print("check k", kspace.shape)
+        # print("check sens", sensitivity_map.shape)
+        # if new_target is not None:
+        #     target = None
+
         ############################
 
         return kspace, masked_kspace, sensitivity_map, mask, eta, target, fname, slice_idx, acc

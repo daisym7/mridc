@@ -349,7 +349,6 @@ class Gaussian1DMaskFunc(MaskFunc):
 
     def gaussian_kspace(self):
         """Creates a Gaussian sampled k-space center."""
-        print(self.shape[0])
         scaled = int(self.shape[1] * self.scale)
         center = np.ones((scaled, self.shape[0]))
         top_scaled = torch.div((self.shape[1] - scaled), 2, rounding_mode="trunc").item()
