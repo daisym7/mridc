@@ -261,11 +261,11 @@ class MRIDataTransforms:
         ########################
         # Add data augmentation
         params = []
-        augm = aug.DataAugmentor(params, 10)
+        augm = aug.DataAugmentor(10)
         # print("CHECK 1", target.shape)
         # print("check k", kspace.shape)
         # print("check sens", sensitivity_map.shape)
-        kspace, _, sensitivity_map = augm(kspace, target, sensitivity_map, [])
+        kspace, _, sensitivity_map = augm(kspace, target, sensitivity_map)
         ########################
 
         # If the target is not given, we need to compute it.
@@ -635,25 +635,11 @@ class MRIDataTransforms:
         # mask3 = np.squeeze(mask[0])
         # a = len(mask3) / np.count_nonzero(mask3)
         # print("acc", a)
-        # Show Mask
+        # # Show Mask
         # print(mask)
         # mask2 = np.ones(kspace[0, :, :, 0].shape) * np.array(np.squeeze(mask[0]))
         # plt.imshow(mask2, cmap='gray')
         # plt.show()
-
-        # # Add data augmentation
-        # params = []
-        # augm = aug.DataAugmentor(params, 10)
-        # # print("CHECK 1", target.shape)
-        # # print("check k", kspace.shape)
-        # # print("check sens", sensitivity_map.shape)
-        # kspace, target, sensitivity_map = augm(kspace, target, sensitivity_map, [])
-        # print("CHECK 2", target.shape)
-        # print("check k", kspace.shape)
-        # print("check sens", sensitivity_map.shape)
-        # if new_target is not None:
-        #     target = None
-
         ############################
 
         return kspace, masked_kspace, sensitivity_map, mask, eta, target, fname, slice_idx, acc
