@@ -27,6 +27,9 @@ import mridc.collections.reconstruction.parts.transforms as transforms
 import mridc.core.classes.modelPT as modelPT
 import mridc.utils.model_utils as model_utils
 
+import mridc.collections.reconstruction.parts.augmentation as aug
+
+
 wandb.require("service")
 
 __all__ = ["BaseMRIReconstructionModel", "BaseSensitivityModel", "DistributedMetricSum"]
@@ -71,6 +74,7 @@ class BaseMRIReconstructionModel(modelPT.ModelPT, ABC):
 
         cfg_dict = OmegaConf.to_container(cfg, resolve=True)
 
+        self.trainer = trainer
         self.fft_centered = cfg_dict.get("fft_centered")
         self.fft_normalization = cfg_dict.get("fft_normalization")
         self.spatial_dims = cfg_dict.get("spatial_dims")
@@ -601,7 +605,7 @@ class BaseMRIReconstructionModel(modelPT.ModelPT, ABC):
         train_data: Training data.
             torch.utils.data.DataLoader
         """
-        self._train_dl = self._setup_dataloader_from_config(cfg=train_data_config)
+        self._train_dl = self._setup_dataloader_from_config(cfg=train_data_config, dataAugment=True)
 
     def setup_validation_data(self, val_data_config: Optional[DictConfig]):
         """
@@ -635,8 +639,8 @@ class BaseMRIReconstructionModel(modelPT.ModelPT, ABC):
         """
         self._test_dl = self._setup_dataloader_from_config(cfg=test_data_config)
 
-    @staticmethod
-    def _setup_dataloader_from_config(cfg: DictConfig) -> DataLoader:
+    # @staticmethod
+    def _setup_dataloader_from_config(self, cfg: DictConfig, dataAugment=False) -> DataLoader:
         """
         Setups the dataloader from the configuration (yaml) file.
 
@@ -672,6 +676,13 @@ class BaseMRIReconstructionModel(modelPT.ModelPT, ABC):
                 else [subsample.create_mask_for_mask_type(mask_type, center_fractions, accelerations)]
             )
 
+        ##############
+        # Add data augmentation
+        if dataAugment:
+            augm = aug.DataAugmentor(0)
+        else:
+            augm = None
+
         dataset = mri_data.MRISliceDataset(
             root=cfg.get("data_path"),
             sense_root=cfg.get("sense_path"),
@@ -694,10 +705,15 @@ class BaseMRIReconstructionModel(modelPT.ModelPT, ABC):
                 spatial_dims=cfg.get("spatial_dims"),
                 coil_dim=cfg.get("coil_dim"),
                 use_seed=cfg.get("use_seed"),
+                data_augment_func=augm,
             ),
             sample_rate=cfg.get("sample_rate"),
             consecutive_slices=cfg.get("consecutive_slices"),
+            trainer_pl=self.trainer,
         )
+
+        ##################
+
         if cfg.shuffle:
             sampler = torch.utils.data.RandomSampler(dataset)
         else:

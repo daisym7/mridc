@@ -63,6 +63,7 @@ class MRISliceDataset(Dataset):
         num_cols: Optional[Tuple[int]] = None,
         mask_root: Union[str, Path, os.PathLike] = None,
         consecutive_slices: int = 1,
+        trainer_pl=None,
     ):
         """
         Parameters
@@ -98,6 +99,8 @@ class MRISliceDataset(Dataset):
 
         self.sense_root = sense_root
         self.mask_root = mask_root
+
+        self.trainer = trainer_pl
 
         self.dataset_cache_file = Path(dataset_cache_file)
 
@@ -292,7 +295,7 @@ class MRISliceDataset(Dataset):
                 raise ValueError(
                     f"Sensitivity map has invalid dimensions {sensitivity_map.shape} compared to kspace {kspace.shape}"
                 )
-
+        epoch_number = self.trainer.current_epoch
         return (
             (
                 kspace,
@@ -314,5 +317,6 @@ class MRISliceDataset(Dataset):
                 attrs,
                 fname.name,
                 dataslice,
+                epoch_number,
             )
         )

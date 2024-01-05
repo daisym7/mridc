@@ -208,7 +208,7 @@ class DataAugmentor:
         self.augmentation_pipeline = AugmentationPipeline()
         self.aug_on = True
 
-    def __call__(self, kspace, target, sens_map):
+    def __call__(self, kspace, target, sens_map, epoch):
         """
         Generates augmented kspace and corresponding augmented target pair.
         kspace: torch tensor of shape [C, H, W, 2] (multi-coil) or [H, W, 2]
@@ -216,6 +216,7 @@ class DataAugmentor:
         target_size: [H, W] shape of the generated augmented target
         """
         # Set augmentation probability
+        self.current_epoch_fn = epoch
         if self.aug_on:
             p = self.schedule_p()
             self.augmentation_pipeline.set_augmentation_strength(p)
@@ -228,13 +229,12 @@ class DataAugmentor:
         return kspace, target, sens_map
 
     def schedule_p(self):
-        D = 0
-        T = 20
+        D = 50
+        T = 100
         t = self.current_epoch_fn
         p_max = 0.55
         if t < D:
             return 0.0
         else:
             p = (p_max / (1 - np.exp(-5))) * (1 - np.exp((-5 * t) / T))
-            p = 0.25
             return p

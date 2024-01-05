@@ -325,6 +325,30 @@ def apply_mask(
 
     if existing_mask is None:
         mask, acc = mask_func(shape, seed, half_scan_percentage=half_scan_percentage, scale=center_scale)
+    # if existing_mask is None:
+    #     # apply point spread function to find best mask (as least clustered lines as possible)
+    #     lowest_value = 100
+    #     for i in range(1000):
+    #         # get mask
+    #         best_mask, best_acc = mask_func(shape, seed, half_scan_percentage=half_scan_percentage, scale=center_scale)
+    #         # fft mask
+    #         mask3 = np.squeeze(best_mask[0])
+    #         a = np.fft.fftshift(np.fft.fft(mask3))
+    #         # remove center
+    #         b = np.abs(a)
+    #         center_frac = 0.08
+    #         center_lines = int((len(b) * center_frac) / 2)
+    #         center = np.argmax(b)
+    #         b[center: center + center_lines] = 0
+    #         b[center - center_lines: center] = 0
+    #         # get highest value other than center
+    #         c = np.argsort(b)
+    #         c = b[c]
+    #         highest_value = c[-1]
+    #         if highest_value < lowest_value:
+    #             lowest_value = highest_value
+    #             mask = best_mask
+    #             acc = best_acc
     else:
         mask = existing_mask
         acc = mask.size / mask.sum()

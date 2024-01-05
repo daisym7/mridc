@@ -49,6 +49,7 @@ class MRIDataTransforms:
         spatial_dims: Sequence[int] = None,
         coil_dim: int = 0,
         use_seed: bool = True,
+        data_augment_func = None,
     ):
         """
         Initialize the data transform.
@@ -125,6 +126,7 @@ class MRIDataTransforms:
         self.max_norm = max_norm
         self.spatial_dims = spatial_dims if spatial_dims is not None else [-2, -1]
         self.coil_dim = coil_dim - 1 if self.dimensionality == 2 else coil_dim
+        self.data_augment = data_augment_func
 
         self.apply_prewhitening = apply_prewhitening
         self.prewhitening = (
@@ -166,6 +168,7 @@ class MRIDataTransforms:
         attrs: Dict,
         fname: str,
         slice_idx: int,
+        epoch_number: int,
     ) -> Tuple[
         torch.Tensor,
         Union[Union[List, torch.Tensor], torch.Tensor],
@@ -260,12 +263,8 @@ class MRIDataTransforms:
 
         ########################
         # Add data augmentation
-        params = []
-        augm = aug.DataAugmentor(10)
-        # print("CHECK 1", target.shape)
-        # print("check k", kspace.shape)
-        # print("check sens", sensitivity_map.shape)
-        kspace, _, sensitivity_map = augm(kspace, target, sensitivity_map)
+        # if self.data_augment is not None:
+        #     kspace, _, sensitivity_map = self.data_augment(kspace, target, sensitivity_map, epoch_number)
         ########################
 
         # If the target is not given, we need to compute it.
@@ -439,6 +438,7 @@ class MRIDataTransforms:
 
             masked_kspace = masked_kspace * mask
             mask = mask.byte()
+        # hij gaat altijd hierin, een functie zit ook in een lijst
         elif isinstance(self.mask_func, list):
             masked_kspaces = []
             masks = []
@@ -631,12 +631,14 @@ class MRIDataTransforms:
                 target = target / torch.max(torch.abs(target))
 
         ############################
-        # Acceleration based on the mask
+        # # Acceleration based on the mask
         # mask3 = np.squeeze(mask[0])
         # a = len(mask3) / np.count_nonzero(mask3)
         # print("acc", a)
-        # # Show Mask
-        # print(mask)
+        # # # # Show Mask
+        # print("Length",len(mask3))
+        # if len(mask3) == 192:
+        #     print(mask3)
         # mask2 = np.ones(kspace[0, :, :, 0].shape) * np.array(np.squeeze(mask[0]))
         # plt.imshow(mask2, cmap='gray')
         # plt.show()

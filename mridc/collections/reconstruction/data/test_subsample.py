@@ -291,6 +291,59 @@ class Equispaced2DMaskFunc(MaskFunc):
         return mask, acceleration * 2
 
 
+class Powerlaw1DMaskFunc(MaskFunc):
+    def __call__(
+            self,
+            shape: Union[Sequence[int], np.ndarray],
+            seed: Optional[Union[int, Tuple[int, ...]]] = None,
+            half_scan_percentage: Optional[float] = 0.0,
+            scale: Optional[float] = 0.1,
+    ) -> Tuple[torch.Tensor, int]:
+        dims = [1 for _ in shape]
+        self.shape = tuple(shape[-3:-1])
+        dims[-2] = self.shape[-1]
+
+        center_fraction, wanted_acc = self.choose_acceleration()
+        phase_lines = shape[-2]
+        center_lines = round(phase_lines * center_fraction)
+        undersample_lines = phase_lines - center_lines
+        if undersample_lines % 2 != 0:
+            center_lines += 1
+        # get part that needs undersampling, so leave out center lines
+        n = int((phase_lines - center_lines) / 2)
+        x = np.linspace(0, 1, n)
+        y = x ** (-scale)
+        y[np.isinf(y)] = np.max(y[~np.isinf(y)])
+        y = y / np.max(y)
+        y_reversed = list(reversed(y))
+        y = np.hstack((y_reversed, y))
+
+        # compute offset to reach desired acceleration factor
+        b = (n * 2 / wanted_acc - np.sum(y)) / (n * 2 - np.sum(y))
+        z = b + (1 - b) * y
+
+        # plot powerlaw
+        # plt.figure()
+        # plt.plot(z)
+        # plt.ylim([0, 1.2])
+        # plt.show()
+
+        count = 0
+        acc_realization = 0
+        while np.abs(acc_realization - wanted_acc) > 0.05:
+            mask1 = np.where(np.random.rand(1, n * 2) < z, 1, 0)[0]
+            mask2 = np.ones(phase_lines)
+            mask2[:n] = mask1[:n]
+            mask2[(n+center_lines):] = mask1[n:]
+            acc_realization = phase_lines / np.sum(mask2)
+            count += 1
+            if count > 1000:
+                raise ValueError(f'Generating mask failed in while loop. Try again.')
+        # print("Zo lang in While loop:", count)
+        acc_realization = phase_lines / np.sum(mask2)
+        return torch.from_numpy(mask2.reshape(dims).astype(np.float32)), acceleration
+
+
 class Gaussian1DMaskFunc(MaskFunc):
     """
     Creates a 1D sub-sampling mask of a given shape.
@@ -328,6 +381,7 @@ class Gaussian1DMaskFunc(MaskFunc):
         # print(scale)
         dims = [1 for _ in shape]
         self.shape = tuple(shape[-3:-1])
+        print(self.shape)
         dims[-2] = self.shape[-1]
         full_width_half_maximum, acceleration = self.choose_acceleration()
 
@@ -339,11 +393,8 @@ class Gaussian1DMaskFunc(MaskFunc):
         self.acceleration = acceleration
         self.scale = scale
 
-        #############################
-        # make sure acceleration is correct
         count = 0
         acc_realization = 100
-        # DIT IS GEHARDCODE !!!
         wanted_acc = 3
         while np.abs(acc_realization - wanted_acc) > 0.05:
             count += 1
@@ -360,7 +411,7 @@ class Gaussian1DMaskFunc(MaskFunc):
             # print(acc_realization)
             if count > 1000:
                 raise ValueError(f'Generating mask failed in while loop. Try again.')
-        ##########################
+        print(count)
         return torch.from_numpy(mask[0].reshape(dims).astype(np.float32)), acceleration
 
     def gaussian_kspace(self):
@@ -597,51 +648,6 @@ class Gaussian2DMaskFunc(MaskFunc):
         return kernel
 
 
-class Powerlaw1DMaskFunc(MaskFunc):
-    def __call__(
-            self,
-            shape: Union[Sequence[int], np.ndarray],
-            seed: Optional[Union[int, Tuple[int, ...]]] = None,
-            half_scan_percentage: Optional[float] = 0.0,
-            scale: Optional[float] = 0.1,
-    ) -> Tuple[torch.Tensor, int]:
-        dims = [1 for _ in shape]
-        self.shape = tuple(shape[-3:-1])
-        dims[-2] = self.shape[-1]
-        center_fraction, wanted_acc = self.choose_acceleration()
-        phase_lines = shape[-2]
-        center_lines = round(phase_lines * center_fraction)
-        undersample_lines = phase_lines - center_lines
-        if undersample_lines % 2 != 0:
-            center_lines += 1
-        # get part that needs undersampling, so leave out center lines
-        n = int((phase_lines - center_lines) / 2)
-        x = np.linspace(0, 1, n)
-        y = x ** (-scale)
-        y[np.isinf(y)] = np.max(y[~np.isinf(y)])
-        y = y / np.max(y)
-        y_reversed = list(reversed(y))
-        y = np.hstack((y_reversed, y))
-
-        # compute offset to reach desired acceleration factor
-        b = (n * 2 / wanted_acc - np.sum(y)) / (n * 2 - np.sum(y))
-        z = b + (1 - b) * y
-
-        count = 0
-        acc_realization = 0
-        while np.abs(acc_realization - wanted_acc) > 0.05:
-            mask1 = np.where(np.random.rand(1, n * 2) < z, 1, 0)[0]
-            mask2 = np.ones(phase_lines)
-            mask2[:n] = mask1[:n]
-            mask2[(n+center_lines):] = mask1[n:]
-            acc_realization = phase_lines / np.sum(mask2)
-            count += 1
-            if count > 10000:
-                raise ValueError(f'Generating mask failed in while loop. Try again.')
-        acc_realization = phase_lines / np.sum(mask2)
-        return torch.from_numpy(mask2.reshape(dims).astype(np.float32)), acc_realization
-
-
 class Poisson2DMaskFunc(MaskFunc):
     """
     Creates a 2D sub-sampling mask of a given shape.
@@ -850,8 +856,108 @@ def create_mask_for_mask_type(
         return Gaussian1DMaskFunc(center_fractions, accelerations)
     if mask_type_str == "gaussian2d":
         return Gaussian2DMaskFunc(center_fractions, accelerations)
-    if mask_type_str == "powerlaw1d":
-        return Powerlaw1DMaskFunc(center_fractions, accelerations)
     if mask_type_str == "poisson2d":
         return Poisson2DMaskFunc(center_fractions, accelerations)
+    if mask_type_str =="powerlaw1d":
+        return Powerlaw1DMaskFunc(center_fractions, accelerations)
     raise NotImplementedError(f"{mask_type_str} not supported")
+
+
+def point_spread_function(masktype, center_fraction, acceleration, scale_factor):
+    # apply point spread function to find best mask (as least clustered lines as possible)
+    mask_func = create_mask_for_mask_type("powerlaw1d", [0.08], [2])
+    num_phase = 360
+    lowest_value = 100
+    for i in range(1000):
+        # get mask
+        best_mask, best_acc = mask_func([1, num_phase, num_phase, 2], scale=0.1)
+        # fft mask
+        mask3 = np.squeeze(best_mask[0])
+        # mask3 = best_mask
+        a = np.fft.fftshift(np.fft.fft(mask3))
+        # remove center
+        b = np.abs(a)
+        center_frac = 0.08
+        center_lines = int((len(b) * center_frac) / 2)
+        center = np.argmax(b)
+        b[center: center + center_lines] = 0
+        b[center - center_lines: center] = 0
+        # get highest value other than center
+        c = np.argsort(b)
+        c = b[c]
+        highest_value = c[-1]
+        if i == 0:
+            print(highest_value)
+            mask5 = np.ones((num_phase, num_phase)) * np.array(mask3)
+            # plt.imshow(mask5)
+            # plt.show()
+        if highest_value < lowest_value:
+            lowest_value = highest_value
+            mask = best_mask
+            acc = best_acc
+    return mask, acc
+
+
+def average_acceleration(masktype, center_fraction, acceleration, scale_factor):
+    average = 0
+    count = 0
+    for i in range(10000):
+        mask_func = create_mask_for_mask_type(masktype, [center_fraction], [acceleration])
+        mask = mask_func([1, 192, 192, 2], scale=scale_factor)
+        # # Acceleration based on the mask
+        mask3 = np.squeeze(mask[0])
+        a = len(mask3) / np.count_nonzero(mask3)
+        average += a
+        if a > 1.9:
+            count += 1
+    print(count)
+    print("average a:", average/10000)
+    return
+
+
+def find_mask_with_right_acceleration(masktype, center_fraction, acceleration, scale_factor):
+    for i in range(1000):
+        found_acc = 100
+        count = 0
+        acceleration = 3
+        while np.abs(found_acc - acceleration) > 0.05:
+            # print(found_acc, acceleration)
+            mask_func = create_mask_for_mask_type(masktype, [center_fraction], [acceleration])
+            mask, acc = mask_func([1, 192, 192, 2], scale=scale_factor)
+            mask3 = np.squeeze(mask)
+            found_acc = len(mask3) / np.count_nonzero(mask3)
+            # print(found_acc)
+            count += 1
+            if count > 5000:
+                raise ValueError(f'Generating mask failed in while loop. Try again.')
+    print("found acc: ", found_acc)
+    print(count)
+    return mask, found_acc
+
+
+if __name__ == "__main__":
+    masktype = 'gaussian1d'
+    center_fraction = 0.9
+    acceleration = 3.3
+    scale_factor = 0.08
+
+    # average_acceleration(masktype, center_fraction, acceleration, scale_factor)
+
+    # check if parameters can give the right acceleration (problem with gaussian1d)
+    # final_mask, acc = find_mask_with_right_acceleration(masktype, center_fraction, acceleration, scale_factor)
+
+    # use point spread function to find the best mask
+    # final_mask, acc = point_spread_function(masktype, center_fraction, acceleration, scale_factor)
+    for i in range(30):
+        mask_func = create_mask_for_mask_type(masktype, [center_fraction], [acceleration])
+        final_mask, acc = mask_func([1, 192, 192, 2], scale=scale_factor)
+        acc = len(final_mask) / np.count_nonzero(final_mask[0,0,:,0])
+        print("Acceleration of mask", acc)
+    print(final_mask.shape)
+    final_mask = np.squeeze(final_mask[0])
+    acc = len(final_mask) / np.count_nonzero(final_mask)
+    print("Acceleration of mask", acc)
+    mask6 = np.ones((192, 192)) * np.array(final_mask)
+    plt.imshow(mask6, cmap='gray')
+    plt.show()
+

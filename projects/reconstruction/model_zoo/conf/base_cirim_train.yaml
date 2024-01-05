@@ -63,7 +63,7 @@ model:
   log_images: true
 
   train_ds:
-    data_path: /scratch/dmvandenberg/Esaote Trainingset/VolledigeDataset/Dataset/train/
+    data_path: /scratch/dmvandenberg/Data/Esaote_Trainingset/Knee/Dataset/exp1/Train/
     sense_path: None
     mask_path: None
     initial_predictions_path: None
@@ -84,9 +84,9 @@ model:
     mask_args:
       type: gaussian1d
       accelerations:
-        - 1.4
+        - 3.3
       center_fractions:
-        - 0.7
+        - 0.9
       scale: 0.08
       shift_mask: false
       use_seed: false
@@ -106,12 +106,12 @@ model:
     coil_dim: 1
     use_seed: false
     shuffle: true
-    num_workers: 1
+    num_workers: 8
     drop_last: false
     pin_memory: false
 
   validation_ds:
-    data_path: /scratch/dmvandenberg/Esaote Trainingset/VolledigeDataset/Dataset/Check/
+    data_path: /scratch/dmvandenberg/Data/Esaote_Trainingset/Knee/Dataset/exp1/Val/
     sense_path: None
     mask_path: None
     initial_predictions_path: None
@@ -132,9 +132,9 @@ model:
     mask_args:
       type: gaussian1d
       accelerations:
-        - 1.4
+        - 3.3
       center_fractions:
-        - 0.7
+        - 0.9
       scale: 0.08
       shift_mask: false
       use_seed: true
@@ -154,7 +154,7 @@ model:
     coil_dim: 1
     use_seed: true
     shuffle: false
-    num_workers: 1
+    num_workers: 8
     drop_last: false
     pin_memory: false
 
@@ -176,7 +176,7 @@ trainer:
   accelerator: gpu
   devices: 1
   num_nodes: 1
-  max_epochs: 0
+  max_epochs: 100
   precision: 16
   enable_checkpointing: false
   logger: false
@@ -185,9 +185,9 @@ trainer:
   max_steps: -1
 
 exp_manager:
-  exp_dir: /scratch/dmvandenberg/CIRIM_models_Esaote/Eerste_experiment/
+  exp_dir: /scratch/dmvandenberg/CIRIM_models_Esaote/Undersampling_mask_experiment/gaussian1d/Acc=3/
   create_tensorboard_logger: true
-  create_wandb_logger: true
+  create_wandb_logger: false
   wandb_logger_kwargs:
     project: AI4MRI
   files_to_copy: [ ]
