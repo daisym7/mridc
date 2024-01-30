@@ -10,6 +10,7 @@ import numpy as np
 import torch
 
 import matplotlib.pyplot as plt
+import Esaote_powerlaw_mask as Esaote_func
 
 
 @contextlib.contextmanager
@@ -323,10 +324,10 @@ class Powerlaw1DMaskFunc(MaskFunc):
         z = b + (1 - b) * y
 
         # plot powerlaw
-        # plt.figure()
-        # plt.plot(z)
-        # plt.ylim([0, 1.2])
-        # plt.show()
+        plt.figure()
+        plt.plot(z)
+        plt.ylim([0, 1.2])
+        plt.show()
 
         count = 0
         acc_realization = 0
@@ -342,6 +343,34 @@ class Powerlaw1DMaskFunc(MaskFunc):
         # print("Zo lang in While loop:", count)
         acc_realization = phase_lines / np.sum(mask2)
         return torch.from_numpy(mask2.reshape(dims).astype(np.float32)), acceleration
+
+
+class Powerlaw1D_Esaote_MaskFunc(MaskFunc):
+    def __call__(
+            self,
+            shape: Union[Sequence[int], np.ndarray],
+            seed: Optional[Union[int, Tuple[int, ...]]] = None,
+            half_scan_percentage: Optional[float] = 0.0,
+            scale: Optional[float] = 0.1,
+    ) -> Tuple[torch.Tensor, int]:
+        dims = [1 for _ in shape]
+        self.shape = tuple(shape[-3:-1])
+        dims[-2] = self.shape[-1]
+
+        _, acceleration = self.choose_acceleration()
+        print(self.shape)
+        number_lines = int(self.shape[-1]/acceleration)
+        # how many iterations for the point spread function
+        iterations = 1000
+        # tolerance of not getting the exact number of lines
+        tolerance = 0.01
+        # tolerance for asymmetry
+        AsymTolerance = 0.1
+        # get probability density function of powerlaw
+        pdf = Esaote_func.GenPDF(self.shape, acceleration, number_lines)
+        # create mask using the pdf
+        mask = Esaote_func.GenMask(pdf, iterations, tolerance, number_lines, AsymTolerance)
+        return torch.from_numpy(mask.reshape(dims).astype(np.float32)), acceleration
 
 
 class Gaussian1DMaskFunc(MaskFunc):
@@ -381,7 +410,6 @@ class Gaussian1DMaskFunc(MaskFunc):
         # print(scale)
         dims = [1 for _ in shape]
         self.shape = tuple(shape[-3:-1])
-        print(self.shape)
         dims[-2] = self.shape[-1]
         full_width_half_maximum, acceleration = self.choose_acceleration()
 
@@ -395,7 +423,10 @@ class Gaussian1DMaskFunc(MaskFunc):
 
         count = 0
         acc_realization = 100
-        wanted_acc = 3
+        if acceleration > 3:
+            wanted_acc = 3
+        else:
+            wanted_acc = acceleration
         while np.abs(acc_realization - wanted_acc) > 0.05:
             count += 1
             mask = self.gaussian_kspace()
@@ -409,7 +440,8 @@ class Gaussian1DMaskFunc(MaskFunc):
 
             acc_realization = len(mask[0]) / np.sum(mask[0])
             # print(acc_realization)
-            if count > 1000:
+            # print(acc_realization)
+            if count > 100000:
                 raise ValueError(f'Generating mask failed in while loop. Try again.')
         print(count)
         return torch.from_numpy(mask[0].reshape(dims).astype(np.float32)), acceleration
@@ -860,6 +892,8 @@ def create_mask_for_mask_type(
         return Poisson2DMaskFunc(center_fractions, accelerations)
     if mask_type_str =="powerlaw1d":
         return Powerlaw1DMaskFunc(center_fractions, accelerations)
+    if mask_type_str =="powerlaw1d_Esaote":
+        return Powerlaw1D_Esaote_MaskFunc(center_fractions, accelerations)
     raise NotImplementedError(f"{mask_type_str} not supported")
 
 
@@ -901,7 +935,7 @@ def point_spread_function(masktype, center_fraction, acceleration, scale_factor)
 def average_acceleration(masktype, center_fraction, acceleration, scale_factor):
     average = 0
     count = 0
-    for i in range(10000):
+    for i in range(1000):
         mask_func = create_mask_for_mask_type(masktype, [center_fraction], [acceleration])
         mask = mask_func([1, 192, 192, 2], scale=scale_factor)
         # # Acceleration based on the mask
@@ -911,7 +945,7 @@ def average_acceleration(masktype, center_fraction, acceleration, scale_factor):
         if a > 1.9:
             count += 1
     print(count)
-    print("average a:", average/10000)
+    print("average a:", average/1000)
     return
 
 
@@ -936,28 +970,31 @@ def find_mask_with_right_acceleration(masktype, center_fraction, acceleration, s
 
 
 if __name__ == "__main__":
-    masktype = 'gaussian1d'
+    masktype = "powerlaw1d_Esaote"
     center_fraction = 0.9
-    acceleration = 3.3
+    acceleration = 2
     scale_factor = 0.08
+    shape = (200, 200)
 
     # average_acceleration(masktype, center_fraction, acceleration, scale_factor)
 
     # check if parameters can give the right acceleration (problem with gaussian1d)
-    # final_mask, acc = find_mask_with_right_acceleration(masktype, center_fraction, acceleration, scale_factor)
+    # for i in range(1000):
+    #     print(i)
+    #     final_mask, acc = find_mask_with_right_acceleration(masktype, center_fraction, acceleration, scale_factor)
 
     # use point spread function to find the best mask
     # final_mask, acc = point_spread_function(masktype, center_fraction, acceleration, scale_factor)
-    for i in range(30):
-        mask_func = create_mask_for_mask_type(masktype, [center_fraction], [acceleration])
-        final_mask, acc = mask_func([1, 192, 192, 2], scale=scale_factor)
-        acc = len(final_mask) / np.count_nonzero(final_mask[0,0,:,0])
-        print("Acceleration of mask", acc)
-    print(final_mask.shape)
-    final_mask = np.squeeze(final_mask[0])
-    acc = len(final_mask) / np.count_nonzero(final_mask)
+
+    # final_mask = np.squeeze(final_mask[0])
+    mask_func = create_mask_for_mask_type(masktype, [center_fraction], [acceleration])
+    final_mask, acc = mask_func([1, shape[0], shape[1], 2], scale=scale_factor)
+    #
+    final_mask = np.squeeze(final_mask)
+    # print(final_mask.shape)
+    acc = (len(final_mask)) / np.count_nonzero(final_mask)
     print("Acceleration of mask", acc)
-    mask6 = np.ones((192, 192)) * np.array(final_mask)
+    mask6 = np.ones((shape[0], shape[1])) * np.array(final_mask)
     plt.imshow(mask6, cmap='gray')
     plt.show()
 

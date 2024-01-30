@@ -10,6 +10,7 @@ import numpy as np
 import torch
 
 import matplotlib.pyplot as plt
+from Esaote_powerlaw_mask import GenPDF, GenMask
 
 
 @contextlib.contextmanager
@@ -344,7 +345,11 @@ class Gaussian1DMaskFunc(MaskFunc):
         count = 0
         acc_realization = 100
         # DIT IS GEHARDCODE !!!
-        wanted_acc = 3
+        if acceleration > 3:
+            wanted_acc = 3
+        else:
+            wanted_acc = acceleration
+
         while np.abs(acc_realization - wanted_acc) > 0.05:
             count += 1
             mask = self.gaussian_kspace()
@@ -358,7 +363,7 @@ class Gaussian1DMaskFunc(MaskFunc):
 
             acc_realization = len(mask[0]) / np.sum(mask[0])
             # print(acc_realization)
-            if count > 1000:
+            if count > 100000:
                 raise ValueError(f'Generating mask failed in while loop. Try again.')
         ##########################
         return torch.from_numpy(mask[0].reshape(dims).astype(np.float32)), acceleration
@@ -642,6 +647,34 @@ class Powerlaw1DMaskFunc(MaskFunc):
         return torch.from_numpy(mask2.reshape(dims).astype(np.float32)), acc_realization
 
 
+class Powerlaw1D_Esaote_MaskFunc(MaskFunc):
+    def __call__(
+            self,
+            shape: Union[Sequence[int], np.ndarray],
+            seed: Optional[Union[int, Tuple[int, ...]]] = None,
+            half_scan_percentage: Optional[float] = 0.0,
+            scale: Optional[float] = 0.1,
+    ) -> Tuple[torch.Tensor, int]:
+        dims = [1 for _ in shape]
+        self.shape = tuple(shape[-3:-1])
+        dims[-2] = self.shape[-1]
+
+        _, acceleration = self.choose_acceleration()
+        print(self.shape)
+        number_lines = int(self.shape[-1]/acceleration)
+        # how many iterations for the point spread function
+        iterations = 1000
+        # tolerance of not getting the exact number of lines
+        tolerance = 0.01
+        # tolerance for asymmetry
+        AsymTolerance = 0.1
+        # get probability density function of powerlaw
+        pdf = GenPDF(self.shape, acceleration, number_lines)
+        # create mask using the pdf
+        mask = GenMask(pdf, iterations, tolerance, number_lines, AsymTolerance)
+        return torch.from_numpy(mask.reshape(dims).astype(np.float32)), acceleration
+
+
 class Poisson2DMaskFunc(MaskFunc):
     """
     Creates a 2D sub-sampling mask of a given shape.
@@ -848,10 +881,12 @@ def create_mask_for_mask_type(
         return Equispaced2DMaskFunc(center_fractions, accelerations)
     if mask_type_str == "gaussian1d":
         return Gaussian1DMaskFunc(center_fractions, accelerations)
-    if mask_type_str == "gaussian2d":
-        return Gaussian2DMaskFunc(center_fractions, accelerations)
     if mask_type_str == "powerlaw1d":
         return Powerlaw1DMaskFunc(center_fractions, accelerations)
+    if mask_type_str == "powerlaw1d_Esaote":
+        return Powerlaw1D_Esaote_MaskFunc(center_fractions, accelerations)
+    if mask_type_str == "gaussian2d":
+        return Gaussian2DMaskFunc(center_fractions, accelerations)
     if mask_type_str == "poisson2d":
         return Poisson2DMaskFunc(center_fractions, accelerations)
     raise NotImplementedError(f"{mask_type_str} not supported")

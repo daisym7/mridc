@@ -4,7 +4,7 @@
 #SBATCH --mem=8G               # max memory per node
 #SBATCH --cpus-per-task=10      # max CPU cores per MPI process
 #SBATCH --time=04-00:00         # time limit (DD-HH:MM)
-#SBATCH --nice=10             # allow other priority jobs to go first
+#SBATCH --nice=100             # allow other priority jobs to go first
 #SBATCH --output=slurm_output_%A.out
 
 # Initialize conda functions and activate your environment
