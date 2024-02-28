@@ -10,7 +10,7 @@ import numpy as np
 import torch
 
 import matplotlib.pyplot as plt
-from Esaote_powerlaw_mask import GenPDF, GenMask
+from mridc.collections.reconstruction.data.Esaote_powerlaw_mask import GenPDF, GenMask
 
 
 @contextlib.contextmanager
@@ -345,8 +345,8 @@ class Gaussian1DMaskFunc(MaskFunc):
         count = 0
         acc_realization = 100
         # DIT IS GEHARDCODE !!!
-        if acceleration > 3:
-            wanted_acc = 3
+        if acceleration > 4:
+            wanted_acc = 4
         else:
             wanted_acc = acceleration
 
@@ -660,16 +660,15 @@ class Powerlaw1D_Esaote_MaskFunc(MaskFunc):
         dims[-2] = self.shape[-1]
 
         _, acceleration = self.choose_acceleration()
-        print(self.shape)
         number_lines = int(self.shape[-1]/acceleration)
         # how many iterations for the point spread function
         iterations = 1000
         # tolerance of not getting the exact number of lines
         tolerance = 0.01
         # tolerance for asymmetry
-        AsymTolerance = 0.1
+        AsymTolerance = 1
         # get probability density function of powerlaw
-        pdf = GenPDF(self.shape, acceleration, number_lines)
+        pdf = GenPDF(self.shape[-1], acceleration, number_lines)
         # create mask using the pdf
         mask = GenMask(pdf, iterations, tolerance, number_lines, AsymTolerance)
         return torch.from_numpy(mask.reshape(dims).astype(np.float32)), acceleration

@@ -365,9 +365,9 @@ class Powerlaw1D_Esaote_MaskFunc(MaskFunc):
         # tolerance of not getting the exact number of lines
         tolerance = 0.01
         # tolerance for asymmetry
-        AsymTolerance = 0.1
+        AsymTolerance = 1
         # get probability density function of powerlaw
-        pdf = Esaote_func.GenPDF(self.shape, acceleration, number_lines)
+        pdf = Esaote_func.GenPDF(self.shape[-1], acceleration, number_lines)
         # create mask using the pdf
         mask = Esaote_func.GenMask(pdf, iterations, tolerance, number_lines, AsymTolerance)
         return torch.from_numpy(mask.reshape(dims).astype(np.float32)), acceleration
@@ -423,10 +423,10 @@ class Gaussian1DMaskFunc(MaskFunc):
 
         count = 0
         acc_realization = 100
-        if acceleration > 3:
-            wanted_acc = 3
-        else:
-            wanted_acc = acceleration
+        # if acceleration > 3:
+        #     wanted_acc = 3
+        # else:
+        wanted_acc = acceleration
         while np.abs(acc_realization - wanted_acc) > 0.05:
             count += 1
             mask = self.gaussian_kspace()
@@ -439,11 +439,11 @@ class Gaussian1DMaskFunc(MaskFunc):
                 mask[: int(np.round(mask.shape[0] * half_scan_percentage)), :] = 0.0
 
             acc_realization = len(mask[0]) / np.sum(mask[0])
+            print(acc_realization)
             # print(acc_realization)
             # print(acc_realization)
-            if count > 100000:
+            if count > 1000:
                 raise ValueError(f'Generating mask failed in while loop. Try again.')
-        print(count)
         return torch.from_numpy(mask[0].reshape(dims).astype(np.float32)), acceleration
 
     def gaussian_kspace(self):
@@ -862,6 +862,150 @@ class Poisson2DMaskFunc(MaskFunc):
         return mask
 
 
+class Gaussian1DMaskFunc2(MaskFunc):
+    """Same as Gaussian2DMaskFunc, but for 1D k-space data.
+
+    .. note::
+        See ..class::`atommic.collections.common.data.subsample.Gaussian2DMaskFunc` for more details.
+
+    Examples
+    --------
+    >>> import torch
+    >>> from atommic.collections.common.data.subsample import Gaussian1DMaskFunc
+    >>> mask_func = Gaussian1DMaskFunc(center_fractions=[0.7, 0.7], accelerations=[4, 8])
+    >>> mask_func.choose_acceleration()
+    (0.7, 4)
+    >>> kspace = torch.randn(1, 1, 640, 368)
+    >>> mask, acceleration = mask_func(kspace.shape)
+    >>> mask.shape
+    torch.Size([1, 1, 1, 368])
+    >>> acceleration
+    4
+    """
+
+    def __call__(
+        self,
+        shape: Union[Sequence[int], np.ndarray],
+        seed: Optional[Union[int, Tuple[int, ...]]] = None,
+        partial_fourier_percentage: Optional[float] = 0.0,
+        center_scale: Optional[float] = 0.08,
+        **kwargs,
+    ) -> Tuple[torch.Tensor, int]:
+        """Calls :class:`Gaussian1DMaskFunc`.
+
+        Parameters
+        ----------
+        shape : Sequence[int]
+            The shape of the mask to be created. The shape should have at least 3 dimensions. Same as the shape of the
+            input k-space data.
+        seed : int or tuple of ints, optional
+            Seed for the random number generator. Default is ``None``.
+        partial_fourier_percentage : float, optional
+            Percentage of the low-frequency columns to be retained. Default is ``0.0``.
+        center_scale : float, optional
+            For autocalibration purposes, data points near the k-space center will be fully sampled within an ellipse
+            of which the half-axes will be set to the given `center_scale` percentage of the fully sampled region.
+            Default is ``0.02``.
+
+        Returns
+        -------
+        Tuple[torch.Tensor, int]
+            A tuple of the generated mask and the acceleration factor.
+        """
+        with temp_seed(self.rng, seed):
+            dims = [1 for _ in shape]
+            self.shape = tuple(shape[-3:-1])
+            self.shape = (self.shape[1], self.shape[0])
+            dims[-2] = self.shape[-2]
+
+            full_width_half_maximum, acceleration = self.choose_acceleration()
+
+            self.full_width_half_maximum = full_width_half_maximum
+            self.acceleration = acceleration
+            self.center_scale = center_scale
+
+            # don't get stuck in the while loop
+            counter = 0
+            found_acc = 1000
+            while np.abs(found_acc - acceleration) > 0.02:
+                mask = self.gaussian_kspace()
+                mask[tuple(self.gaussian_coordinates())] = 1.0
+
+                # mask = np.fft.ifftshift(np.fft.ifftshift(np.fft.ifftshift(mask, axes=0), axes=0), axes=(0, 1))
+
+                if partial_fourier_percentage != 0:
+                    mask[:, : int(np.round(mask.shape[1] * partial_fourier_percentage))] = 0.0
+
+                mask = torch.from_numpy(np.transpose(mask, (1, 0))[0].reshape(*dims).astype(np.float32))
+
+                check_mask = np.squeeze(mask)
+                found_acc = (len(check_mask)) / np.count_nonzero(check_mask)
+
+                # don't get stuck in the while loop
+                counter += 1
+                if counter > 1000:
+                    raise ValueError(f'Generating mask failed in while loop. Try again.')
+
+        return mask, acceleration
+
+    def gaussian_kspace(self) -> np.ndarray:
+        """Creates a Gaussian sampled k-space center."""
+        scaled = int(self.shape[0] * self.center_scale)
+        center = np.ones((scaled, self.shape[1]))
+        top_scaled = torch.div((self.shape[0] - scaled), 2, rounding_mode="trunc").item()
+        bottom_scaled = self.shape[0] - scaled - top_scaled
+        top = np.zeros((top_scaled, self.shape[1]))
+        btm = np.zeros((bottom_scaled, self.shape[1]))
+        return np.concatenate((top, center, btm))
+
+    def gaussian_coordinates(self) -> Tuple[np.ndarray, np.ndarray]:
+        r"""Returns Gaussian sampled k-space coordinates.
+
+        Returns
+        -------
+        xsamples : np.ndarray
+            A 1D numpy array of x-coordinates.
+        ysamples : np.ndarray
+            A 1D numpy array of y-coordinates.
+
+        Notes
+        -----
+        The number of samples taken is determined by `n_sample` which is calculated as
+        `self.shape[0] / self.acceleration`. The selection of the samples is based on the probabilities calculated
+        from `gaussian_kernel`.
+        """
+        n_sample = int(self.shape[0] / self.acceleration)
+        idxs = np.random.choice(range(self.shape[0]), size=n_sample, replace=False, p=self.gaussian_kernel())
+        xsamples = np.concatenate([np.tile(i, self.shape[1]) for i in idxs])
+        ysamples = np.concatenate([range(self.shape[1]) for _ in idxs])
+        return xsamples, ysamples
+
+    def gaussian_kernel(self) -> np.ndarray:
+        r"""Creates a Gaussian sampled k-space kernel.
+
+        .. note::
+            The function calculates the Gaussian kernel by computing the sum of the exponential of the squared \
+            x-values divided by 2 times the square of the standard deviation. The standard deviation is calculated \
+            from the full width at half maximum (FWHM) of the Gaussian curve and is defined as the FWHM divided by \
+            the square root of 8 times the natural logarithm of 2. The FWHM and the kern_len are obtained from the \
+            `full_width_half_maximum` and `shape` attributes of the class respectively.
+
+        Returns
+        -------
+        ndarray
+            The Gaussian kernel.
+        """
+        kernel = 1
+        for kern_len in self.shape:
+            sigma = self.full_width_half_maximum / np.sqrt(8 * np.log(2))
+            x = np.linspace(-1.0, 1.0, kern_len)
+            g = np.exp(-(x**2 / (2 * sigma**2)))  # noqa: F841
+            kernel = g
+            break
+        kernel = kernel / kernel.sum()  # type: ignore
+        return kernel
+
+
 def create_mask_for_mask_type(
     mask_type_str: str, center_fractions: Sequence[float], accelerations: Sequence[int]
 ) -> MaskFunc:
@@ -886,6 +1030,9 @@ def create_mask_for_mask_type(
         return Equispaced2DMaskFunc(center_fractions, accelerations)
     if mask_type_str == "gaussian1d":
         return Gaussian1DMaskFunc(center_fractions, accelerations)
+    # Check mask van Atommic
+    if mask_type_str == "gaussian1d_atommic":
+        return Gaussian1DMaskFunc2(center_fractions, accelerations)
     if mask_type_str == "gaussian2d":
         return Gaussian2DMaskFunc(center_fractions, accelerations)
     if mask_type_str == "poisson2d":
@@ -897,34 +1044,32 @@ def create_mask_for_mask_type(
     raise NotImplementedError(f"{mask_type_str} not supported")
 
 
-def point_spread_function(masktype, center_fraction, acceleration, scale_factor):
+def point_spread_function(masktype, shape, iterations, center_fraction, acceleration, scale_factor):
     # apply point spread function to find best mask (as least clustered lines as possible)
-    mask_func = create_mask_for_mask_type("powerlaw1d", [0.08], [2])
-    num_phase = 360
+    mask_func = create_mask_for_mask_type(masktype, [center_fraction], [acceleration])
     lowest_value = 100
-    for i in range(1000):
+    for i in range(iterations):
         # get mask
-        best_mask, best_acc = mask_func([1, num_phase, num_phase, 2], scale=0.1)
+        best_mask, best_acc = mask_func([1, shape[0], shape[1], 2], scale=scale_factor)
         # fft mask
         mask3 = np.squeeze(best_mask[0])
         # mask3 = best_mask
         a = np.fft.fftshift(np.fft.fft(mask3))
-        # remove center
         b = np.abs(a)
+        plt.plot(b)
+        plt.show()
+        # remove center
         center_frac = 0.08
         center_lines = int((len(b) * center_frac) / 2)
         center = np.argmax(b)
-        b[center: center + center_lines] = 0
         b[center - center_lines: center] = 0
+        b[center: center + center_lines] = 0
+        plt.plot(b)
+        plt.show()
         # get highest value other than center
         c = np.argsort(b)
         c = b[c]
         highest_value = c[-1]
-        if i == 0:
-            print(highest_value)
-            mask5 = np.ones((num_phase, num_phase)) * np.array(mask3)
-            # plt.imshow(mask5)
-            # plt.show()
         if highest_value < lowest_value:
             lowest_value = highest_value
             mask = best_mask
@@ -970,26 +1115,21 @@ def find_mask_with_right_acceleration(masktype, center_fraction, acceleration, s
 
 
 if __name__ == "__main__":
-    masktype = "powerlaw1d_Esaote"
-    center_fraction = 0.9
-    acceleration = 2
-    scale_factor = 0.08
+    masktype = "gaussian1d_atommic"
+    center_fraction = 0.7
+    acceleration = 3
+    scale_factor = 0.02
     shape = (200, 200)
 
-    # average_acceleration(masktype, center_fraction, acceleration, scale_factor)
-
-    # check if parameters can give the right acceleration (problem with gaussian1d)
-    # for i in range(1000):
-    #     print(i)
-    #     final_mask, acc = find_mask_with_right_acceleration(masktype, center_fraction, acceleration, scale_factor)
+    average_acceleration(masktype, center_fraction, acceleration, scale_factor)
 
     # use point spread function to find the best mask
-    # final_mask, acc = point_spread_function(masktype, center_fraction, acceleration, scale_factor)
+    iterations = 10
+    #final_mask, acc = point_spread_function(masktype, shape, iterations, center_fraction, acceleration, scale_factor)
 
-    # final_mask = np.squeeze(final_mask[0])
     mask_func = create_mask_for_mask_type(masktype, [center_fraction], [acceleration])
     final_mask, acc = mask_func([1, shape[0], shape[1], 2], scale=scale_factor)
-    #
+
     final_mask = np.squeeze(final_mask)
     # print(final_mask.shape)
     acc = (len(final_mask)) / np.count_nonzero(final_mask)

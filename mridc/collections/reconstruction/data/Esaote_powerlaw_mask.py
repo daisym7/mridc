@@ -23,9 +23,8 @@ def GenPDFOri(r, p):
 
 
 def GenPDF(imSize, p, PCTG):
-    print(imSize, p, PCTG)
     # initialize pdf
-    r = np.abs(np.linspace(-1.0, 1.0, imSize[0]))
+    r = np.abs(np.linspace(-1.0, 1.0, imSize))
     pdfOrig = GenPDFOri(r, p)
 
     # get min and max of original pdf for the offset
@@ -57,6 +56,7 @@ def GenPDF(imSize, p, PCTG):
         counter += 1
         if counter > 10000:
             raise ValueError(f"Cannot generate mask.")
+
     return pdf
 
 
@@ -85,6 +85,7 @@ def Calc_EncNumbTol(pIn, fThreshold, fTollerance):
 
 
 def GenMask(pdf, iter, tol, PCTG, AsymThresh):
+    # print("Vector size", len(pdf), PCTG)
     np.random.seed()
 
     tmp = np.zeros(len(pdf))
@@ -141,11 +142,12 @@ if __name__ == "__main__":
     tolerance = 0.01
     PDF = []
     MASK = []
-    pdf = GenPDF(shape, acc, number_lines)
-    mask_vector = GenMask(pdf, iterations, tolerance, number_lines, AsymTolerance)
-    mask6 = np.ones((shape[0], shape[1])) * np.array(mask_vector)
-    plt.imshow(mask6, cmap='gray')
-    plt.show()
+
+
+    # mask_vector = GenMask(pdf, iterations, tolerance, number_lines, AsymTolerance)
+    # mask6 = np.ones((shape[0], shape[1])) * np.array(mask_vector)
+    # plt.imshow(mask6, cmap='gray')
+    # plt.show()
 
 
 

@@ -605,6 +605,7 @@ class BaseMRIReconstructionModel(modelPT.ModelPT, ABC):
         train_data: Training data.
             torch.utils.data.DataLoader
         """
+
         self._train_dl = self._setup_dataloader_from_config(cfg=train_data_config, dataAugment=True)
 
     def setup_validation_data(self, val_data_config: Optional[DictConfig]):

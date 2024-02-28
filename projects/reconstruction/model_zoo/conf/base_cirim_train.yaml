@@ -1,5 +1,5 @@
-pretrained: false
-checkpoint: None
+pretrained: true
+checkpoint: /scratch/dmvandenberg/CIRIM_models_Esaote/Transfer_learning/Training_on_FastMRI/default/2024-02-07_16-08-49/checkpoints/default--val_loss=0.0175-epoch=98.ckpt
 mode: train
 
 model:
@@ -63,7 +63,7 @@ model:
   log_images: true
 
   train_ds:
-    data_path: /scratch/dmvandenberg/Data/Esaote_Trainingset/Knee/3D_Dataset/Train/
+    data_path: /scratch/dmvandenberg/Data/Esaote_Trainingset/Knee/2D_Dataset/exp1/Train/
     sense_path: None
     mask_path: None
     initial_predictions_path: None
@@ -82,12 +82,12 @@ model:
     coil_combination_method: SENSE
     dimensionality: 2
     mask_args:
-      type: gaussian2d
+      type: powerlaw1d_Esaote
       accelerations:
         - 2
       center_fractions:
-        - 0.7
-      scale: 0.08
+        - 0.5
+      scale: 0.06
       shift_mask: false
       use_seed: false
     half_scan_percentage: 0.0
@@ -111,7 +111,7 @@ model:
     pin_memory: false
 
   validation_ds:
-    data_path: /scratch/dmvandenberg/Data/Esaote_Trainingset/Knee/3D_Dataset/Val/
+    data_path: /scratch/dmvandenberg/Data/Esaote_Trainingset/Knee/2D_Dataset/exp1/Val/
     sense_path: None
     mask_path: None
     initial_predictions_path: None
@@ -130,12 +130,12 @@ model:
     coil_combination_method: SENSE
     dimensionality: 2
     mask_args:
-      type: gaussian2d
+      type: powerlaw1d_Esaote
       accelerations:
         - 2
       center_fractions:
-        - 0.7
-      scale: 0.08
+        - 0.5
+      scale: 0.06
       shift_mask: false
       use_seed: true
     half_scan_percentage: 0.0
@@ -176,7 +176,7 @@ trainer:
   accelerator: gpu
   devices: 1
   num_nodes: 1
-  max_epochs: 2
+  max_epochs: 100
   precision: 16
   enable_checkpointing: false
   logger: false
@@ -185,7 +185,7 @@ trainer:
   max_steps: -1
 
 exp_manager:
-  exp_dir: /scratch/dmvandenberg/CIRIM_models_Esaote/Undersampling_mask_experiment/gaussian2d/
+  exp_dir: /scratch/dmvandenberg/CIRIM_models_Esaote/Transfer_learning/Fine_tune_on_Esaote/
   create_tensorboard_logger: true
   create_wandb_logger: false
   wandb_logger_kwargs:
