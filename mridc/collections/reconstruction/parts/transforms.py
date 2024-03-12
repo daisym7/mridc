@@ -632,17 +632,18 @@ class MRIDataTransforms:
 
         ############################
         # # Acceleration based on the mask
-        # mask3 = np.squeeze(mask[0])
+        mask3 = np.squeeze(mask[0])
         # # print("SHAPE", np.squeeze(mask[0]).shape)
-        # # a = (len(mask3)*len(mask3[0])) / np.count_nonzero(mask3)
-        # # print("acc", a)
+        a = (len(mask3)*len(mask3[0])) / np.count_nonzero(mask3)
+        # a = len(mask3) / np.count_nonzero(mask3)
+        print("acc", a)
         # # # # # Show Mask
         # # print("Length",len(mask3))
         # # if len(mask3) == 192:
         # #     print(mask3)
-        # mask2 = np.ones(kspace[0, :, :, 0].shape) * np.array(mask3)
-        # plt.imshow(mask2, cmap='gray')
-        # plt.show()
+        mask2 = np.ones(kspace[0, :, :, 0].shape) * np.array(mask3)
+        plt.imshow(mask2, cmap='gray')
+        plt.show()
         ############################
 
         return kspace, masked_kspace, sensitivity_map, mask, eta, target, fname, slice_idx, acc
