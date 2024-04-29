@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --gres=shard:31    # Number of (V100) GPUs
+#SBATCH --gres=shard:15  # Number of (V100) GPUs
 #SBATCH --job-name=TrainCIRIM
 #SBATCH --mem=8G               # max memory per node
 #SBATCH --cpus-per-task=10      # max CPU cores per MPI process

@@ -1,5 +1,5 @@
-pretrained: true
-checkpoint: /scratch/dmvandenberg/CIRIM_models_Esaote/Transfer_learning/Fine_tune_on_Esaote/default/2024-02-13_09-31-41/checkpoints/default--val_loss=0.0494-epoch=34-last.ckpt
+pretrained: False
+checkpoint: None
 mode: train
 
 model:
@@ -63,7 +63,7 @@ model:
   log_images: true
 
   train_ds:
-    data_path: /scratch/dmvandenberg/Data/Esaote_Trainingset/Knee/2D_Dataset/exp1/Train/
+    data_path: /data/projects/esaote/Data_training_CIRIM/Esaote_Trainingset/Knee/2D_Dataset/exp1/Train/
     sense_path: None
     mask_path: None
     initial_predictions_path: None
@@ -82,12 +82,12 @@ model:
     coil_combination_method: SENSE
     dimensionality: 2
     mask_args:
-      type: powerlaw1d_Esaote
+      type: random1d
       accelerations:
         - 2
       center_fractions:
-        - 0.5
-      scale: 0.06
+        - 0.06
+      scale: 0.1
       shift_mask: false
       use_seed: false
     half_scan_percentage: 0.0
@@ -111,7 +111,7 @@ model:
     pin_memory: false
 
   validation_ds:
-    data_path: /scratch/dmvandenberg/Data/Esaote_Trainingset/Knee/2D_Dataset/exp1/Val/
+    data_path: /data/projects/esaote/Data_training_CIRIM/Esaote_Trainingset/Knee/2D_Dataset/exp1/Val/
     sense_path: None
     mask_path: None
     initial_predictions_path: None
@@ -130,11 +130,11 @@ model:
     coil_combination_method: SENSE
     dimensionality: 2
     mask_args:
-      type: powerlaw1d_Esaote
+      type: random1d
       accelerations:
         - 2
       center_fractions:
-        - 0.5
+        - 0.06
       scale: 0.06
       shift_mask: false
       use_seed: true
@@ -176,7 +176,7 @@ trainer:
   accelerator: gpu
   devices: 1
   num_nodes: 1
-  max_epochs: 66
+  max_epochs: 100
   precision: 16
   enable_checkpointing: false
   logger: false
@@ -185,9 +185,9 @@ trainer:
   max_steps: -1
 
 exp_manager:
-  exp_dir: /scratch/dmvandenberg/CIRIM_models_Esaote/Transfer_learning/Fine_tune_on_Esaote/
-  create_tensorboard_logger: false
-  create_wandb_logger: true
+  exp_dir: /scratch/dmvandenberg/CIRIM_models_Esaote/2D_undersampling_mask/Scan5_6_val/random1d/Acc=2/
+  create_tensorboard_logger: true
+  create_wandb_logger: false
   wandb_logger_kwargs:
     project: AI4MRI
   files_to_copy: [ ]

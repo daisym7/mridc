@@ -299,6 +299,7 @@ class MRIDataTransforms:
 
         target = torch.view_as_complex(target)
         target = torch.abs(target / torch.max(torch.abs(target)))
+        # target = torch.abs(target / np.abs(attrs['max']))
 
         seed = tuple(map(ord, fname)) if self.use_seed else None
         acq_start = attrs["padding_left"] if "padding_left" in attrs else 0
@@ -549,6 +550,7 @@ class MRIDataTransforms:
                     )
                     if self.max_norm:
                         imspace = imspace / torch.max(torch.abs(imspace))
+                        # imspace = imspace / np.abs(attrs['max'])
                     kspace = fft.fft2(
                         imspace,
                         centered=self.fft_centered,
@@ -558,6 +560,7 @@ class MRIDataTransforms:
                 elif self.fft_normalization in ("none", None) and self.max_norm:
                     imspace = torch.fft.ifftn(torch.view_as_complex(kspace), dim=list(self.spatial_dims), norm=None)
                     imspace = imspace / torch.max(torch.abs(imspace))
+                    # imspace = imspace / np.abs(attrs['max'])
                     kspace = torch.view_as_real(torch.fft.fftn(imspace, dim=list(self.spatial_dims), norm=None))
 
                 masked_kspaces = []
@@ -571,6 +574,7 @@ class MRIDataTransforms:
                         )
                         if self.max_norm:
                             imspace = imspace / torch.max(torch.abs(imspace))
+                            # imspace = imspace / np.abs(attrs['max'])
                         y = fft.fft2(
                             imspace,
                             centered=self.fft_centered,
@@ -580,6 +584,7 @@ class MRIDataTransforms:
                     elif self.fft_normalization in ("none", None) and self.max_norm:
                         imspace = torch.fft.ifftn(torch.view_as_complex(y), dim=list(self.spatial_dims), norm=None)
                         imspace = imspace / torch.max(torch.abs(imspace))
+                        # imspace = imspace / np.abs(attrs['max'])
                         y = torch.view_as_real(torch.fft.fftn(imspace, dim=list(self.spatial_dims), norm=None))
                     masked_kspaces.append(y)
                 masked_kspace = masked_kspaces
@@ -592,6 +597,7 @@ class MRIDataTransforms:
                 )
                 if self.max_norm:
                     imspace = imspace / torch.max(torch.abs(imspace))
+                    # imspace = imspace / np.abs(attrs['max'])
                 kspace = fft.fft2(
                     imspace,
                     centered=self.fft_centered,
@@ -606,6 +612,7 @@ class MRIDataTransforms:
                 )
                 if self.max_norm:
                     imspace = imspace / torch.max(torch.abs(imspace))
+                    # imspace = imspace / np.abs(attrs['max'])
                 masked_kspace = fft.fft2(
                     imspace,
                     centered=self.fft_centered,
@@ -615,6 +622,7 @@ class MRIDataTransforms:
             elif self.fft_normalization in ("none", None) and self.max_norm:
                 imspace = torch.fft.ifftn(torch.view_as_complex(masked_kspace), dim=list(self.spatial_dims), norm=None)
                 imspace = imspace / torch.max(torch.abs(imspace))
+                # imspace = imspace / np.abs(attrs['max'])
                 masked_kspace = torch.view_as_real(torch.fft.fftn(imspace, dim=list(self.spatial_dims), norm=None))
 
                 imspace = torch.fft.ifftn(torch.view_as_complex(kspace), dim=list(self.spatial_dims), norm=None)
@@ -629,21 +637,23 @@ class MRIDataTransforms:
                     eta = eta / torch.max(torch.abs(eta))
 
                 target = target / torch.max(torch.abs(target))
+                # target = target / np.abs(attrs['max'])
 
         ############################
+        # print("CHECKnpAX", attrs['max'])
         # # Acceleration based on the mask
-        mask3 = np.squeeze(mask[0])
+        # mask3 = np.squeeze(mask[0])
         # # print("SHAPE", np.squeeze(mask[0]).shape)
-        a = (len(mask3)*len(mask3[0])) / np.count_nonzero(mask3)
+        # a = (len(mask3)*len(mask3[0])) / np.count_nonzero(mask3)
         # a = len(mask3) / np.count_nonzero(mask3)
-        print("acc", a)
+        # print("acc", a)
         # # # # # Show Mask
         # # print("Length",len(mask3))
         # # if len(mask3) == 192:
         # #     print(mask3)
-        mask2 = np.ones(kspace[0, :, :, 0].shape) * np.array(mask3)
-        plt.imshow(mask2, cmap='gray')
-        plt.show()
+        # mask2 = np.ones(kspace[0, :, :, 0].shape) * np.array(mask3)
+        # plt.imshow(mask2, cmap='gray')
+        # plt.show()
         ############################
 
         return kspace, masked_kspace, sensitivity_map, mask, eta, target, fname, slice_idx, acc

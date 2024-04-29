@@ -920,9 +920,10 @@ class Gaussian1DMaskFunc2(MaskFunc):
 
             full_width_half_maximum, acceleration = self.choose_acceleration()
 
-            if acceleration > 3:
-                wanted_acc = acceleration
+            wanted_acc = acceleration
+            if acceleration >= 3:
                 acceleration = acceleration + 0.5
+
 
             self.full_width_half_maximum = full_width_half_maximum
             self.acceleration = acceleration
@@ -951,7 +952,7 @@ class Gaussian1DMaskFunc2(MaskFunc):
                 counter += 1
                 # if counter == 500:
 
-                if counter > 1000:
+                if counter > 10000:
                     raise ValueError(f'Generating mask failed in while loop. Try again.')
 
         return mask, acceleration
@@ -1055,7 +1056,7 @@ def create_mask_for_mask_type(
 def point_spread_function(masktype, shape, iterations, center_fraction, acceleration, scale_factor):
     # apply point spread function to find best mask (as least clustered lines as possible)
     mask_func = create_mask_for_mask_type(masktype, [center_fraction], [acceleration])
-    lowest_value = 100
+    lowest_value = 5
     for i in range(iterations):
         # get mask
         best_mask, best_acc = mask_func([1, shape[0], shape[1], 2], scale=scale_factor)
@@ -1125,22 +1126,23 @@ def find_mask_with_right_acceleration(masktype, center_fraction, acceleration, s
 if __name__ == "__main__":
     masktype = "gaussian2d"
     center_fraction = 0.7
-    acceleration = 4
-    scale_factor = 0.02
-    shape = (224, 28)
+    acceleration = 5
+    scale_factor = 0.08
+    shape = (224,90)
 
     # average_acceleration(masktype, center_fraction, acceleration, scale_factor)
 
     # use point spread function to find the best mask
-    iterations = 10
-    #final_mask, acc = point_spread_function(masktype, shape, iterations, center_fraction, acceleration, scale_factor)
+    # iterations = 10
+    # final_mask, acc = point_spread_function(masktype, shape, iterations, center_fraction, acceleration, scale_factor)
 
     mask_func = create_mask_for_mask_type(masktype, [center_fraction], [acceleration])
+    # for i in range(10000):
+    #     final_mask, acc = mask_func([1, shape[0], shape[1], 2], scale=scale_factor)
     final_mask, acc = mask_func([1, shape[0], shape[1], 2], scale=scale_factor)
-
     final_mask = np.squeeze(final_mask)
     # print(final_mask.shape)
-    acc = (len(final_mask)) / np.count_nonzero(final_mask)
+    acc = 20160 / np.count_nonzero(final_mask)
     print("Acceleration of mask", acc)
     mask6 = np.ones((shape[0], shape[1])) * np.array(final_mask)
     plt.imshow(mask6, cmap='gray')

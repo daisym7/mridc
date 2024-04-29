@@ -813,6 +813,6 @@ if __name__ == "__main__":
     plt.show()
 
     # save mask in h5 file
-    file_map = '/scratch/dmvandenberg/Data/Esaote_Trainingset/Knee/2D_Dataset/Check/'
+    file_map = '/scratch/dmvandenberg/Data/Esaote_Trainingset/Knee/2D_Dataset/exp1/Test/'
     mask_map = '/scratch/dmvandenberg/Data/Esaote_Trainingset/Knee/2D_Dataset/Mask/'
-    save_mask(file_map, mask_map, final_mask)
+    # save_mask(file_map, mask_map, final_mask)
