@@ -198,6 +198,10 @@ class MRIDataTransforms:
         -------
         The transformed data.
         """
+        #################
+        # check if data is 2d or 3d
+        dimensions = 2
+        #################
         kspace = utils.to_tensor(kspace)
 
         # This condition is necessary in case of auto estimation of sense maps.
@@ -298,8 +302,11 @@ class MRIDataTransforms:
             raise ValueError("No target found")
 
         target = torch.view_as_complex(target)
-        target = torch.abs(target / torch.max(torch.abs(target)))
-        # target = torch.abs(target / np.abs(attrs['max']))
+
+        if dimensions == 2:
+            target = torch.abs(target / torch.max(torch.abs(target)))
+        else:
+            target = torch.abs(target / np.abs(attrs['max']))
 
         seed = tuple(map(ord, fname)) if self.use_seed else None
         acq_start = attrs["padding_left"] if "padding_left" in attrs else 0
@@ -549,8 +556,10 @@ class MRIDataTransforms:
                         spatial_dims=self.spatial_dims,
                     )
                     if self.max_norm:
-                        imspace = imspace / torch.max(torch.abs(imspace))
-                        # imspace = imspace / np.abs(attrs['max'])
+                        if dimensions == 2:
+                            imspace = imspace / torch.max(torch.abs(imspace))
+                        else:
+                            imspace = imspace / np.abs(attrs['max'])
                     kspace = fft.fft2(
                         imspace,
                         centered=self.fft_centered,
@@ -559,8 +568,10 @@ class MRIDataTransforms:
                     )
                 elif self.fft_normalization in ("none", None) and self.max_norm:
                     imspace = torch.fft.ifftn(torch.view_as_complex(kspace), dim=list(self.spatial_dims), norm=None)
-                    imspace = imspace / torch.max(torch.abs(imspace))
-                    # imspace = imspace / np.abs(attrs['max'])
+                    if dimensions == 2:
+                        imspace = imspace / torch.max(torch.abs(imspace))
+                    else:
+                        imspace = imspace / np.abs(attrs['max'])
                     kspace = torch.view_as_real(torch.fft.fftn(imspace, dim=list(self.spatial_dims), norm=None))
 
                 masked_kspaces = []
@@ -573,8 +584,10 @@ class MRIDataTransforms:
                             spatial_dims=self.spatial_dims,
                         )
                         if self.max_norm:
-                            imspace = imspace / torch.max(torch.abs(imspace))
-                            # imspace = imspace / np.abs(attrs['max'])
+                            if dimensions == 2:
+                                imspace = imspace / torch.max(torch.abs(imspace))
+                            else:
+                                imspace = imspace / np.abs(attrs['max'])
                         y = fft.fft2(
                             imspace,
                             centered=self.fft_centered,
@@ -583,8 +596,10 @@ class MRIDataTransforms:
                         )
                     elif self.fft_normalization in ("none", None) and self.max_norm:
                         imspace = torch.fft.ifftn(torch.view_as_complex(y), dim=list(self.spatial_dims), norm=None)
-                        imspace = imspace / torch.max(torch.abs(imspace))
-                        # imspace = imspace / np.abs(attrs['max'])
+                        if dimensions == 2:
+                            imspace = imspace / torch.max(torch.abs(imspace))
+                        else:
+                            imspace = imspace / np.abs(attrs['max'])
                         y = torch.view_as_real(torch.fft.fftn(imspace, dim=list(self.spatial_dims), norm=None))
                     masked_kspaces.append(y)
                 masked_kspace = masked_kspaces
@@ -596,8 +611,10 @@ class MRIDataTransforms:
                     spatial_dims=self.spatial_dims,
                 )
                 if self.max_norm:
-                    imspace = imspace / torch.max(torch.abs(imspace))
-                    # imspace = imspace / np.abs(attrs['max'])
+                    if dimensions == 2:
+                        imspace = imspace / torch.max(torch.abs(imspace))
+                    else:
+                        imspace = imspace / np.abs(attrs['max'])
                 kspace = fft.fft2(
                     imspace,
                     centered=self.fft_centered,
@@ -611,8 +628,10 @@ class MRIDataTransforms:
                     spatial_dims=self.spatial_dims,
                 )
                 if self.max_norm:
-                    imspace = imspace / torch.max(torch.abs(imspace))
-                    # imspace = imspace / np.abs(attrs['max'])
+                    if dimensions == 2:
+                        imspace = imspace / torch.max(torch.abs(imspace))
+                    else:
+                        imspace = imspace / np.abs(attrs['max'])
                 masked_kspace = fft.fft2(
                     imspace,
                     centered=self.fft_centered,
@@ -621,8 +640,10 @@ class MRIDataTransforms:
                 )
             elif self.fft_normalization in ("none", None) and self.max_norm:
                 imspace = torch.fft.ifftn(torch.view_as_complex(masked_kspace), dim=list(self.spatial_dims), norm=None)
-                imspace = imspace / torch.max(torch.abs(imspace))
-                # imspace = imspace / np.abs(attrs['max'])
+                if dimensions == 2:
+                    imspace = imspace / torch.max(torch.abs(imspace))
+                else:
+                    imspace = imspace / np.abs(attrs['max'])
                 masked_kspace = torch.view_as_real(torch.fft.fftn(imspace, dim=list(self.spatial_dims), norm=None))
 
                 imspace = torch.fft.ifftn(torch.view_as_complex(kspace), dim=list(self.spatial_dims), norm=None)
@@ -636,8 +657,10 @@ class MRIDataTransforms:
                 if eta.size != 0 and eta.ndim > 2:
                     eta = eta / torch.max(torch.abs(eta))
 
-                target = target / torch.max(torch.abs(target))
-                # target = target / np.abs(attrs['max'])
+                if dimensions == 2:
+                    target = target / torch.max(torch.abs(target))
+                else:
+                    target = target / np.abs(attrs['max'])
 
         ############################
         # print("CHECKnpAX", attrs['max'])

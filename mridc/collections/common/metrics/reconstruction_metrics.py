@@ -31,9 +31,7 @@ def ssim(gt: np.ndarray, pred: np.ndarray, maxval: np.ndarray = None) -> float:
         raise ValueError("Unexpected number of dimensions in ground truth.")
     if gt.ndim != pred.ndim:
         raise ValueError("Ground truth dimensions does not match pred.")
-
     maxval = np.max(gt) if maxval is None else maxval
-
     _ssim = sum(
         structural_similarity(gt[slice_num], pred[slice_num], data_range=maxval) for slice_num in range(gt.shape[0])
     )

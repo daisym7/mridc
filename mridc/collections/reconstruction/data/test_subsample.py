@@ -1124,9 +1124,9 @@ def find_mask_with_right_acceleration(masktype, center_fraction, acceleration, s
 
 
 if __name__ == "__main__":
-    masktype = "gaussian2d"
+    masktype = "gaussian1d"
     center_fraction = 0.7
-    acceleration = 5
+    acceleration = 2
     scale_factor = 0.08
     shape = (224,90)
 
@@ -1139,7 +1139,7 @@ if __name__ == "__main__":
     mask_func = create_mask_for_mask_type(masktype, [center_fraction], [acceleration])
     # for i in range(10000):
     #     final_mask, acc = mask_func([1, shape[0], shape[1], 2], scale=scale_factor)
-    final_mask, acc = mask_func([1, shape[0], shape[1], 2], scale=scale_factor)
+    final_mask, acc = mask_func([shape[0], shape[1], 2], scale=scale_factor)
     final_mask = np.squeeze(final_mask)
     # print(final_mask.shape)
     acc = 20160 / np.count_nonzero(final_mask)
